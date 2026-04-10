@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Konklave Pro Final</title>
+
+<style>
+body {
+    font-family: Arial;
+    text-align: center;
+    background: #f4f4f4;
+}
+
+/* ===== PAPAM ===== */
+.papam {
+    display: none;
+    background: gold;
+    padding: 10px;
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+/* ===== LEGENDE ===== */
+.legend {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    background: white;
+    border: 1px solid #aaa;
+    padding: 8px;
+    font-size: 12px;
+}
+
+/* ===== KARTEN ===== */
+.container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+}
+
+.card {
+    width: 130px;
+    background: white;
+    border: 1px solid #aaa;
+    position: relative;
+}
+
+.img {
+    height: 110px;
+    background: #ddd;
+    background-size: cover;
+}
+
+.name {
+    font-weight: bold;
+}
+
+.type {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 14px;
+    font-size: 10px;
+    color: white;
+    background: #ccc;
+}
+
+/* kleines X */
+.delete-btn {
+    position: absolute;
+    top: 2px;
+    right: 3px;
+    font-size: 9px;
+    background: red;
+    color: white;
+    border: none;
+    cursor: pointer;
+}
+
+/* ===== MATRIX ===== */
+table {
+    border-collapse: collapse;
+    margin: auto;
+    background: white;
+}
+
+th, td {
+    border: 1px solid #aaa;
+    padding: 6px;
+}
+
+input {
+    width: 60px;
+    text-align: center;
+}
+
+.gold {
+    outline: 3px solid gold;
+}
+
+.small-x {
+    color: red;
+    cursor: pointer;
+    margin-left: 4px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="papam" id="papam"></div>
+<div class="legend" id="legend"><b>Ausrichtungen</b></div>
+
+<h2>Konklave</h2>
+
+<button onclick="addCard()">+ Kandidat</button>
+<div class="container" id="cards"></div>
+
+<hr>
+
+Papstname: <input id="papstname" placeholder="z.B. Johannes XXIV">
+
+<br><br>
+
+Wähler: <input id="total" value="120" oninput="updateThreshold()">
+→ 2/3 = <span id="thresholdDisplay">80</span>
+
+<br><br>
+
+<button onclick="addRound()">+ Wahlgang</button>
+
+<table>
+<thead>
+<tr id="header"><th>WG</th></tr>
+</thead>
+<tbody id="body"></tbody>
+</table>
+
+<script>
+
+/* ===== AUSRICHTUNGEN ===== */
+const colors = {
+    ERK:"#050069", TRA:"#0500AD", KON:"#0500FF",
+    GKO:"#008CFF", MOD:"#FFD966",
+    GLI:"#FFA1A1", LIB:"#FF7575",
+    PRO:"#FF0000", SPR:"#B30C0C"
+};
+
+const labels = {
+    ERK:"Erzkonservativ",
+    TRA:"Traditionell",
+    KON:"Konservativ",
+    GKO:"Gemäßigt konservativ",
+    MOD:"Moderat",
+    GLI:"Gemäßigt liberal",
+    LIB:"Liberal",
+    PRO:"Progressiv",
+    SPR:"Stark progressiv"
+};
+
+const types = Object.keys(colors);
+
+/* ===== LEGENDE ===== */
+function buildLegend(){
+    const l = document.getElementById("legend");
+    types.forEach(t=>{
+        const d=document.createElement("div");
+        d.innerHTML = `<span style="background:${colors[t]};display:inline-block;width:15px;height:10px;margin-right:5px"></span>${t} - ${labels[t]}`;
+        l.appendChild(d);
+    });
+}
+
+/* ===== DATEN ===== */
+let candidates=[];
+let rounds=0;
+let threshold=80;
+
+/* ===== KARTEN ===== */
+function addCard(){
+    const id=candidates.length;
+    candidates.push({name:"Name",type:null});
+
+    const div=document.createElement("div");
+    div.className="card";
+
+    div.innerHTML=`
+    <button class="delete-btn" onclick="removeCard(${id})">x</button>
+    <div class="img" onclick="uploadImage(this)"></div>
+    <div class="name" onclick="editName(this,${id})">Name</div>
+    <div class="type" onclick="cycleType(this,${id})">---</div>
+    `;
+
+    document.getElementById("cards").appendChild(div);
+    updateHeader();
+}
+
+function editName(el,id){
+    const v=prompt("Name:",el.innerText);
+    if(v){
+        el.innerText=v;
+        candidates[id].name=v;
+        updateHeader();
+    }
+}
+
+function cycleType(el,id){
+    let i=types.indexOf(candidates[id].type);
+    i=(i+1)%types.length;
+    const t=types[i];
+    candidates[id].type=t;
+    el.innerText=t;
+    el.style.background=colors[t];
+}
+
+function removeCard(id){
+    candidates.splice(id,1);
+    rebuildAll();
+}
+
+function rebuildAll(){
+    document.getElementById("cards").innerHTML="";
+    document.getElementById("body").innerHTML="";
+    rounds=0;
+
+    const old=[...candidates];
+    candidates=[];
+
+    old.forEach(c=>{
+        addCard();
+        candidates[candidates.length-1]=c;
+    });
+}
+
+/* ===== MATRIX ===== */
+function updateHeader(){
+    const h=document.getElementById("header");
+    h.innerHTML="<th>WG</th>";
+
+    candidates.forEach(c=>{
+        const th=document.createElement("th");
+        th.innerText=c.name;
+        h.appendChild(th);
+    });
+}
+
+function addRound(){
+    rounds++;
+    const tr=document.createElement("tr");
+
+    let row=`<td>WG ${rounds}
+    <span class="small-x" onclick="this.closest('tr').remove()">✖</span></td>`;
+
+    candidates.forEach(()=>{
+        row+=`<td><input type="number" value="0" oninput="check()"></td>`;
+    });
+
+    tr.innerHTML=row;
+    document.getElementById("body").appendChild(tr);
+}
+
+/* ===== LOGIK ===== */
+function updateThreshold(){
+    const total=Number(document.getElementById("total").value)||0;
+    threshold=Math.ceil((2/3)*total);
+    document.getElementById("thresholdDisplay").innerText=threshold;
+}
+
+function check(){
+    let winner=null;
+
+    document.querySelectorAll("#body tr").forEach(r=>{
+        const inputs=r.querySelectorAll("input");
+
+        inputs.forEach((i,idx)=>{
+            i.classList.remove("gold");
+            if(Number(i.value)>=threshold){
+                i.classList.add("gold");
+                winner=idx;
+            }
+        });
+    });
+
+    if(winner!==null){
+        const name=candidates[winner].name;
+        const papst=document.getElementById("papstname").value || "Papst ?";
+        const box=document.getElementById("papam");
+
+        box.style.display="block";
+        box.innerText=`Habemus Papam: ${papst} (${name})`;
+    }
+}
+
+/* ===== IMAGE ===== */
+function uploadImage(div){
+    const input=document.createElement("input");
+    input.type="file";
+    input.onchange=e=>{
+        const r=new FileReader();
+        r.onload=ev=>div.style.backgroundImage=`url(${ev.target.result})`;
+        r.readAsDataURL(e.target.files[0]);
+    };
+    input.click();
+}
+
+/* ===== START ===== */
+buildLegend();
+updateThreshold();
+
+for(let i=0;i<3;i++) addCard();
+
+</script>
+
+</body>
+</html>
