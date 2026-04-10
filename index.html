@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<title>Konklave Pro Fix</title>
+<title>Konklave Pro Final</title>
 
 <style>
 body {
@@ -17,6 +17,7 @@ body {
     background: gold;
     padding: 10px;
     font-weight: bold;
+    margin-bottom: 10px;
 }
 
 /* ===== KARTEN ===== */
@@ -32,7 +33,6 @@ body {
     background: white;
     border: 1px solid #aaa;
     position: relative;
-    padding-bottom: 5px;
 }
 
 .img {
@@ -55,16 +55,16 @@ body {
 
 .name {
     font-weight: bold;
+    padding: 2px;
 }
 
 .row {
     display:flex;
     justify-content: space-between;
-    padding:2px 5px;
+    padding:2px 6px;
     font-size:12px;
 }
 
-/* Ausrichtung größer */
 .type {
     display:flex;
     align-items:center;
@@ -73,7 +73,7 @@ body {
     font-size:11px;
     font-weight:bold;
     color:white;
-    margin:3px;
+    margin:4px;
 }
 
 /* ===== MATRIX ===== */
@@ -103,7 +103,7 @@ input {
     right:10px;
     top:10px;
     background:white;
-    padding:5px;
+    padding:6px;
     border:1px solid #aaa;
     font-size:12px;
 }
@@ -134,7 +134,9 @@ Wähler: <input id="total" value="120" oninput="updateThreshold()">
 <button onclick="addRound()">+ Wahlgang</button>
 
 <table>
-<thead><tr id="header"><th>WG</th></tr></thead>
+<thead>
+<tr id="header"><th>WG</th></tr>
+</thead>
 <tbody id="body"></tbody>
 </table>
 
@@ -148,6 +150,18 @@ GLI:"#FFA1A1",LIB:"#FF7575",
 PRO:"#FF0000",SPR:"#B30C0C"
 };
 
+const labels={
+ERK:"Erzkonservativ",
+TRA:"Traditionell",
+KON:"Konservativ",
+GKO:"Gemäßigt konservativ",
+MOD:"Moderat",
+GLI:"Gemäßigt liberal",
+LIB:"Liberal",
+PRO:"Progressiv",
+SPR:"Stark progressiv"
+};
+
 const types=Object.keys(colors);
 
 /* ===== DATEN ===== */
@@ -155,20 +169,31 @@ let candidates=[];
 let rounds=[];
 let threshold=80;
 
-/* ===== ID HELFER ===== */
-function uid(){ return Date.now()+Math.random(); }
+/* ===== ID ===== */
+function uid(){
+    return Date.now()+Math.random();
+}
+
+/* ===== LEGENDE ===== */
+function buildLegend(){
+    const l=document.getElementById("legend");
+    types.forEach(t=>{
+        const d=document.createElement("div");
+        d.innerHTML=`<span style="background:${colors[t]};display:inline-block;width:15px;height:10px;margin-right:5px"></span>${t} - ${labels[t]}`;
+        l.appendChild(d);
+    });
+}
 
 /* ===== KARTEN ===== */
 function addCard(){
-    const c={
+    candidates.push({
         id:uid(),
         name:"Name",
         nation:"🏳️",
         age:"0",
-        role:"",
+        role:"Rolle",
         type:null
-    };
-    candidates.push(c);
+    });
     renderAll();
 }
 
@@ -198,15 +223,17 @@ function renderCards(){
         </div>
 
         <div class="row">
-            <span onclick="edit(c,'role')">${c.role||'Rolle'}</span>
+            <span onclick="edit(c,'role')">${c.role}</span>
         </div>
 
-        <div class="type" onclick="cycleType(c,this)">
-            ${c.type||'---'}
+        <div class="type" onclick="cycleType(c)">
+            ${c.type || "---"}
         </div>
         `;
 
-        if(c.type) div.querySelector(".type").style.background=colors[c.type];
+        if(c.type){
+            div.querySelector(".type").style.background=colors[c.type];
+        }
 
         container.appendChild(div);
     });
@@ -214,10 +241,13 @@ function renderCards(){
 
 function edit(obj,key){
     const v=prompt(key,obj[key]);
-    if(v!==null){ obj[key]=v; renderAll(); }
+    if(v!==null){
+        obj[key]=v;
+        renderAll();
+    }
 }
 
-function cycleType(c,el){
+function cycleType(c){
     let i=types.indexOf(c.type);
     i=(i+1)%types.length;
     c.type=types[i];
@@ -244,9 +274,10 @@ function renderMatrix(){
         let row=`<td>WG ${i+1}</td>`;
 
         candidates.forEach((c,ci)=>{
-            row+=`<td>
-            <input type="number" value="${r[ci]||0}"
-            oninput="updateVote(${i},${ci},this.value)">
+            row+=`
+            <td>
+                <input type="number" value="${r[ci]||0}"
+                oninput="updateVote(${i},${ci},this.value)">
             </td>`;
         });
 
@@ -265,13 +296,13 @@ function updateVote(r,c,val){
     check();
 }
 
+/* ===== LOGIK ===== */
 function updateThreshold(){
     const total=Number(document.getElementById("total").value)||0;
     threshold=Math.ceil((2/3)*total);
     document.getElementById("thresholdDisplay").innerText=threshold;
 }
 
-/* ===== LOGIK ===== */
 function check(){
     let winner=null;
 
@@ -287,7 +318,7 @@ function check(){
 
     if(winner!==null){
         const name=candidates[winner].name;
-        const papst=document.getElementById("papstname").value||"Papst ?";
+        const papst=document.getElementById("papstname").value || "Papst ?";
         const box=document.getElementById("papam");
 
         box.style.display="block";
@@ -301,7 +332,9 @@ function uploadImage(div){
     input.type="file";
     input.onchange=e=>{
         const r=new FileReader();
-        r.onload=ev=>div.style.backgroundImage=`url(${ev.target.result})`;
+        r.onload=ev=>{
+            div.style.backgroundImage=`url(${ev.target.result})`;
+        };
         r.readAsDataURL(e.target.files[0]);
     };
     input.click();
@@ -313,8 +346,15 @@ function renderAll(){
     renderMatrix();
 }
 
-/* START */
+/* ===== START ===== */
+buildLegend();
 updateThreshold();
+
 addCard();
 addCard();
 addCard();
+
+</script>
+
+</body>
+</html>
