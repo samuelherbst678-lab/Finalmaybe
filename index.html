@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<title>Konklave Pro Final</title>
+<title>Konklave Pro Fix</title>
 
 <style>
 body {
@@ -16,94 +16,96 @@ body {
     display: none;
     background: gold;
     padding: 10px;
-    font-size: 18px;
     font-weight: bold;
-    margin-bottom: 10px;
-}
-
-/* ===== LEGENDE ===== */
-.legend {
-    position: fixed;
-    top: 10px;
-    right: 10px;
-    background: white;
-    border: 1px solid #aaa;
-    padding: 8px;
-    font-size: 12px;
 }
 
 /* ===== KARTEN ===== */
 .container {
     display: flex;
     flex-wrap: wrap;
+    gap: 10px;
     justify-content: center;
-    gap: 8px;
 }
 
 .card {
-    width: 130px;
+    width: 170px;
     background: white;
     border: 1px solid #aaa;
     position: relative;
+    padding-bottom: 5px;
 }
 
 .img {
-    height: 110px;
+    height: 120px;
     background: #ddd;
     background-size: cover;
+}
+
+/* kleines X */
+.delete-btn {
+    position:absolute;
+    top:2px;
+    right:3px;
+    font-size:10px;
+    background:red;
+    color:white;
+    border:none;
+    cursor:pointer;
 }
 
 .name {
     font-weight: bold;
 }
 
-.type {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 14px;
-    font-size: 10px;
-    color: white;
-    background: #ccc;
+.row {
+    display:flex;
+    justify-content: space-between;
+    padding:2px 5px;
+    font-size:12px;
 }
 
-/* kleines X */
-.delete-btn {
-    position: absolute;
-    top: 2px;
-    right: 3px;
-    font-size: 9px;
-    background: red;
-    color: white;
-    border: none;
-    cursor: pointer;
+/* Ausrichtung größer */
+.type {
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    height:18px;
+    font-size:11px;
+    font-weight:bold;
+    color:white;
+    margin:3px;
 }
 
 /* ===== MATRIX ===== */
 table {
     border-collapse: collapse;
-    margin: auto;
-    background: white;
+    margin:auto;
+    background:white;
 }
 
-th, td {
-    border: 1px solid #aaa;
-    padding: 6px;
+th,td {
+    border:1px solid #aaa;
+    padding:6px;
 }
 
 input {
-    width: 60px;
-    text-align: center;
+    width:60px;
+    text-align:center;
 }
 
 .gold {
-    outline: 3px solid gold;
+    outline:3px solid gold;
 }
 
-.small-x {
-    color: red;
-    cursor: pointer;
-    margin-left: 4px;
+/* ===== LEGENDE ===== */
+.legend {
+    position:fixed;
+    right:10px;
+    top:10px;
+    background:white;
+    padding:5px;
+    border:1px solid #aaa;
+    font-size:12px;
 }
 </style>
 </head>
@@ -111,7 +113,7 @@ input {
 <body>
 
 <div class="papam" id="papam"></div>
-<div class="legend" id="legend"><b>Ausrichtungen</b></div>
+<div class="legend" id="legend"></div>
 
 <h2>Konklave</h2>
 
@@ -120,7 +122,7 @@ input {
 
 <hr>
 
-Papstname: <input id="papstname" placeholder="z.B. Johannes XXIV">
+Papstname: <input id="papstname">
 
 <br><br>
 
@@ -132,159 +134,160 @@ Wähler: <input id="total" value="120" oninput="updateThreshold()">
 <button onclick="addRound()">+ Wahlgang</button>
 
 <table>
-<thead>
-<tr id="header"><th>WG</th></tr>
-</thead>
+<thead><tr id="header"><th>WG</th></tr></thead>
 <tbody id="body"></tbody>
 </table>
 
 <script>
 
 /* ===== AUSRICHTUNGEN ===== */
-const colors = {
-    ERK:"#050069", TRA:"#0500AD", KON:"#0500FF",
-    GKO:"#008CFF", MOD:"#FFD966",
-    GLI:"#FFA1A1", LIB:"#FF7575",
-    PRO:"#FF0000", SPR:"#B30C0C"
+const colors={
+ERK:"#050069",TRA:"#0500AD",KON:"#0500FF",
+GKO:"#008CFF",MOD:"#FFD966",
+GLI:"#FFA1A1",LIB:"#FF7575",
+PRO:"#FF0000",SPR:"#B30C0C"
 };
 
-const labels = {
-    ERK:"Erzkonservativ",
-    TRA:"Traditionell",
-    KON:"Konservativ",
-    GKO:"Gemäßigt konservativ",
-    MOD:"Moderat",
-    GLI:"Gemäßigt liberal",
-    LIB:"Liberal",
-    PRO:"Progressiv",
-    SPR:"Stark progressiv"
-};
-
-const types = Object.keys(colors);
-
-/* ===== LEGENDE ===== */
-function buildLegend(){
-    const l = document.getElementById("legend");
-    types.forEach(t=>{
-        const d=document.createElement("div");
-        d.innerHTML = `<span style="background:${colors[t]};display:inline-block;width:15px;height:10px;margin-right:5px"></span>${t} - ${labels[t]}`;
-        l.appendChild(d);
-    });
-}
+const types=Object.keys(colors);
 
 /* ===== DATEN ===== */
 let candidates=[];
-let rounds=0;
+let rounds=[];
 let threshold=80;
+
+/* ===== ID HELFER ===== */
+function uid(){ return Date.now()+Math.random(); }
 
 /* ===== KARTEN ===== */
 function addCard(){
-    const id=candidates.length;
-    candidates.push({name:"Name",type:null});
-
-    const div=document.createElement("div");
-    div.className="card";
-
-    div.innerHTML=`
-    <button class="delete-btn" onclick="removeCard(${id})">x</button>
-    <div class="img" onclick="uploadImage(this)"></div>
-    <div class="name" onclick="editName(this,${id})">Name</div>
-    <div class="type" onclick="cycleType(this,${id})">---</div>
-    `;
-
-    document.getElementById("cards").appendChild(div);
-    updateHeader();
-}
-
-function editName(el,id){
-    const v=prompt("Name:",el.innerText);
-    if(v){
-        el.innerText=v;
-        candidates[id].name=v;
-        updateHeader();
-    }
-}
-
-function cycleType(el,id){
-    let i=types.indexOf(candidates[id].type);
-    i=(i+1)%types.length;
-    const t=types[i];
-    candidates[id].type=t;
-    el.innerText=t;
-    el.style.background=colors[t];
+    const c={
+        id:uid(),
+        name:"Name",
+        nation:"🏳️",
+        age:"0",
+        role:"",
+        type:null
+    };
+    candidates.push(c);
+    renderAll();
 }
 
 function removeCard(id){
-    candidates.splice(id,1);
-    rebuildAll();
+    candidates=candidates.filter(c=>c.id!==id);
+    renderAll();
 }
 
-function rebuildAll(){
-    document.getElementById("cards").innerHTML="";
-    document.getElementById("body").innerHTML="";
-    rounds=0;
+function renderCards(){
+    const container=document.getElementById("cards");
+    container.innerHTML="";
 
-    const old=[...candidates];
-    candidates=[];
+    candidates.forEach(c=>{
+        const div=document.createElement("div");
+        div.className="card";
 
-    old.forEach(c=>{
-        addCard();
-        candidates[candidates.length-1]=c;
+        div.innerHTML=`
+        <button class="delete-btn" onclick="removeCard(${c.id})">x</button>
+
+        <div class="img" onclick="uploadImage(this)"></div>
+
+        <div class="name" onclick="edit(c,'name')">${c.name}</div>
+
+        <div class="row">
+            <span onclick="edit(c,'nation')">${c.nation}</span>
+            <span onclick="edit(c,'age')">${c.age}</span>
+        </div>
+
+        <div class="row">
+            <span onclick="edit(c,'role')">${c.role||'Rolle'}</span>
+        </div>
+
+        <div class="type" onclick="cycleType(c,this)">
+            ${c.type||'---'}
+        </div>
+        `;
+
+        if(c.type) div.querySelector(".type").style.background=colors[c.type];
+
+        container.appendChild(div);
     });
 }
 
+function edit(obj,key){
+    const v=prompt(key,obj[key]);
+    if(v!==null){ obj[key]=v; renderAll(); }
+}
+
+function cycleType(c,el){
+    let i=types.indexOf(c.type);
+    i=(i+1)%types.length;
+    c.type=types[i];
+    renderAll();
+}
+
 /* ===== MATRIX ===== */
-function updateHeader(){
-    const h=document.getElementById("header");
-    h.innerHTML="<th>WG</th>";
+function renderMatrix(){
+    const header=document.getElementById("header");
+    header.innerHTML="<th>WG</th>";
 
     candidates.forEach(c=>{
         const th=document.createElement("th");
         th.innerText=c.name;
-        h.appendChild(th);
+        header.appendChild(th);
+    });
+
+    const body=document.getElementById("body");
+    body.innerHTML="";
+
+    rounds.forEach((r,i)=>{
+        const tr=document.createElement("tr");
+
+        let row=`<td>WG ${i+1}</td>`;
+
+        candidates.forEach((c,ci)=>{
+            row+=`<td>
+            <input type="number" value="${r[ci]||0}"
+            oninput="updateVote(${i},${ci},this.value)">
+            </td>`;
+        });
+
+        tr.innerHTML=row;
+        body.appendChild(tr);
     });
 }
 
 function addRound(){
-    rounds++;
-    const tr=document.createElement("tr");
-
-    let row=`<td>WG ${rounds}
-    <span class="small-x" onclick="this.closest('tr').remove()">✖</span></td>`;
-
-    candidates.forEach(()=>{
-        row+=`<td><input type="number" value="0" oninput="check()"></td>`;
-    });
-
-    tr.innerHTML=row;
-    document.getElementById("body").appendChild(tr);
+    rounds.push([]);
+    renderMatrix();
 }
 
-/* ===== LOGIK ===== */
+function updateVote(r,c,val){
+    rounds[r][c]=Number(val);
+    check();
+}
+
 function updateThreshold(){
     const total=Number(document.getElementById("total").value)||0;
     threshold=Math.ceil((2/3)*total);
     document.getElementById("thresholdDisplay").innerText=threshold;
 }
 
+/* ===== LOGIK ===== */
 function check(){
     let winner=null;
 
-    document.querySelectorAll("#body tr").forEach(r=>{
-        const inputs=r.querySelectorAll("input");
-
-        inputs.forEach((i,idx)=>{
+    document.querySelectorAll("#body tr").forEach((row,ri)=>{
+        row.querySelectorAll("input").forEach((i,ci)=>{
             i.classList.remove("gold");
             if(Number(i.value)>=threshold){
                 i.classList.add("gold");
-                winner=idx;
+                winner=ci;
             }
         });
     });
 
     if(winner!==null){
         const name=candidates[winner].name;
-        const papst=document.getElementById("papstname").value || "Papst ?";
+        const papst=document.getElementById("papstname").value||"Papst ?";
         const box=document.getElementById("papam");
 
         box.style.display="block";
@@ -304,13 +307,14 @@ function uploadImage(div){
     input.click();
 }
 
-/* ===== START ===== */
-buildLegend();
+/* ===== RENDER ===== */
+function renderAll(){
+    renderCards();
+    renderMatrix();
+}
+
+/* START */
 updateThreshold();
-
-for(let i=0;i<3;i++) addCard();
-
-</script>
-
-</body>
-</html>
+addCard();
+addCard();
+addCard();
